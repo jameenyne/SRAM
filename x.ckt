@@ -1,0 +1,15 @@
+* sram 32nm cross-section
+.include sram.lib
+.param vdd=0.7
+* make the DC voltage sources
+VDD	vdd	0	0.7
+VWL1	vwl1	0	0.0	pulse(0.0 0.7 0.2n 0.05n 0.05n 0.2n 1.2n)
+VWL2	vwl2	0	0.0	pulse(0.0 0.7 0.8n 0.05n 0.05n 0.2n 1.2n)
+Vpchg	pchg	0	0.0	pulse(0.7 0.0 0.05n 0.05n 0.05n 0.05n 0.6n)
+Venable	enable	0	0.0	pulse(0.0 0.7 0.3n 0.025n 0.025n 0.05n 0.6n)
+* the cross-section
+x0 vwl1 vwl2 pchg enable out_t out_c vdd xsection PARAMS: D0=-0.05640728466141404 D1=-0.008683464037827125 D2=-0.005307022970532113 D3=0.014572747735414747 D4=0.005151047821487995
+* simulation options
+.tran 0.01n 1.2n
+.print tran v(pchg) v(enable) v(out_t) v(out_c)
+.end

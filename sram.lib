@@ -1,0 +1,71 @@
+* sram 32nm cross-section
+.include 32nm_HP.pm
+
+* n-channel mosfet with gate shifter
+.subckt nfet D G S B PARAMS: delta=0.0 L=1.0 W=1.0
+vshift G GG {delta}
+m0 D GG S B NMOS L={L} W={W}
+.ends
+
+* p-channel mosfet with gate shifter
+.subckt pfet D G S B PARAMS: delta=0.0 L=1.0 W=1.0
+vshift G GG {delta}
+m0 D GG S B PMOS L={L} W={W}
+.ends
+
+* cell
+* mos	name	drain	gate	source	body	table	scale
+.subckt cell blt blc vwl vdd
+x0	cmp	tru	vdd	vdd	pfet    PARAMS: L=32n   W=128n 
+x1	cmp	tru	0	0	nfet    PARAMS: L=32n	W=128n 
+x2	tru	cmp	vdd	vdd	pfet    PARAMS: L=32n	W=128n 
+x3	tru	cmp	0	0	nfet    PARAMS: L=32n	W=128n 
+x4	blt	vwl	tru	0	nfet    PARAMS: L=32n	W=128n 
+x5	blc	vwl	cmp	0	nfet    PARAMS: L=32n	W=128n 
+.ends
+
+.subckt load_multiplier in out PARAMS: mult=1.0
+vsense in out 0.0
+fload in 0 vsense {mult}
+.ends
+
+.subckt sense_amp blt blc enable vdd PARAMS: D0=0 D1=0 D2=0 D3=0 D4=0
+x0	blc	blt	vdd	vdd	pfet    PARAMS:	L=32n	W=256n delta={D0}
+x1	blc	blt	x	0	nfet    PARAMS:	L=32n	W=256n delta={D1}
+x2	blt	blc	vdd	vdd	pfet    PARAMS:	L=32n	W=256n delta={D2}
+x3	blt	blc	x	0	nfet    PARAMS:	L=32n	W=256n delta={D3}
+x4	x	enable	0	0	nfet    PARAMS:	L=32n	W=1024n delta={D4}
+.ends
+
+.subckt inverter in out vdd
+M0	out	in	vdd	vdd	PMOS	L=32n	W=256n
+M1	out	in	0	0	NMOS	L=32n	W=256n
+.ends
+
+.subckt xsection vwl1 vwl2 pchg enable out_t out_c vdd PARAMS: D0=0 D1=0 D2=0 D3=0 D4=0 VDD=0.7
+* the cells from which we will read the 1 and the zero
+x0      blt     blc     vwl1    vdd     cell    
+x1      blt     blc     vwl2    vdd     cell   
+* 126 other cells on the same bitline
+xm1     blt     bltt    load_multiplier PARAMS: mult=125
+xm2     blc     blcc    load_multiplier PARAMS: mult=125
+x126    bltt    blcc    0      vdd     cell
+* precharge devices
+M8	blt	pchg	vdd	vdd	PMOS	L=32n	W=3840n
+M9	blc	pchg	vdd	vdd	PMOS	L=32n	W=3840n
+* bit line load caps
+C1	blt	0	0.5678f 
+C2	blc	0	0.5678f
+* sense amps
+xsa     blt blc enable vdd sense_amp    PARAMS: D0={D0} D1={D1} D2={D2} D3={D3} D4={D4}
+* inverters at the output of the sense amp
+xot     blt out_t vdd inverter
+xoc     blc out_c vdd inverter
+* initializations
+.ic	v(x0:tru)={vdd}
+.ic	v(x0:cmp)=0.0
+.ic	v(x1:tru)=0.0
+.ic	v(x1:cmp)={vdd}
+.ic	v(blt)={vdd}
+.ic	v(blc)={vdd}
+.ends
